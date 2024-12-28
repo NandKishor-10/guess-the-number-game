@@ -49,7 +49,9 @@ import androidx.navigation.NavController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
+import androidx.navigation.toRoute
 import com.nandkishor.guesstheno.ui.theme.GuessTheNoTheme
+import kotlinx.serialization.Serializable
 import kotlin.random.Random
 
 class MainActivity : ComponentActivity() {
@@ -66,23 +68,39 @@ class MainActivity : ComponentActivity() {
     }
 }
 
+@Serializable
+object RulesScreen
+
+@Serializable
+data class GameScreen(
+    val chancesLeft: Int
+)
+
+@Serializable
+data class GameOverPopup(
+    val isWinner: Boolean
+)
+
 @Composable
 fun AppNavigation() {
     // Create a NavController
     val navController = rememberNavController()
 
-    // Set up the NavHost to handle navigation
-    NavHost(navController = navController, startDestination = "rules") {
-        composable("rules") {
+    // Setting up the NavHost to handle navigation
+    NavHost(
+        navController = navController,
+        startDestination = RulesScreen
+    ) {
+        composable<RulesScreen> {
             RulesScreen(navController)
         }
-        composable("game/{chancesLeft}") { backStackEntry ->
-            val chancesLeft = backStackEntry.arguments?.getString("chancesLeft")?.toInt() ?: 3
-            GameScreen(chancesLeft = chancesLeft, navController = navController)
+        composable<GameScreen> {
+            val args = it.toRoute<GameScreen>()
+            GameScreen(chancesLeft = args.chancesLeft, navController = navController)
         }
-        composable("gameover/{isWinner}") { backStackEntry ->
-            val isWinner = backStackEntry.arguments?.getString("isWinner")?.toBoolean() == true
-            GameOverPopup(isWinner = isWinner, navController = navController)
+        composable<GameOverPopup> {
+            val args = it.toRoute<GameOverPopup>()
+            GameOverPopup(isWinner = args.isWinner, navController = navController)
         }
     }
 }
@@ -142,8 +160,7 @@ fun RulesScreen(navController: NavController) {
                     value = chancesInput,
                     onValueChange = {
                         chancesInput = it
-                        chances = it.toIntOrNull()
-                            ?: 0 // Convert input to an integer or set to 0 if invalid
+                        chances = it.toIntOrNull() ?: 0 // Convert input to an integer or set to 0 if invalid
                     },
                     label = { Text("Enter Number of Chances") },
                     keyboardOptions = KeyboardOptions.Default.copy(keyboardType = KeyboardType.Number),
@@ -181,7 +198,7 @@ fun RulesScreen(navController: NavController) {
                 Button(
                     onClick = {
                         // Navigate to the Game screen and pass chances as an argument
-                        navController.navigate("game/$chances")
+                        navController.navigate(GameScreen(chancesLeft = chances))
                     },
                     modifier = Modifier
                         .fillMaxWidth()
@@ -279,13 +296,13 @@ fun GameScreen(chancesLeft: Int, navController: NavController) {
                 keyboardOptions = KeyboardOptions.Default.copy(keyboardType = KeyboardType.Number),
                 keyboardActions = KeyboardActions(onDone = {
                     if (guess.toIntOrNull() == randomNumber) {
-                        navController.navigate("gameover/true") // Win scenario
+                        navController.navigate(GameOverPopup(isWinner = true)) // Win scenario
                     } else if (chances - 1 == 0) {
-                        navController.navigate("gameover/false") // Loss scenario
+                        navController.navigate(GameOverPopup(isWinner = false)) // Loss scenario
                     } else {
                         highOrLow = if (randomNumber.toString() < guess) "Your Guess is High" else "Your Guess is Low"
                         chances-- // Decrease chances and continue
-                        guess = ""
+                        guess = "" // Reset Guess
                         KeyboardActions { defaultKeyboardAction(ImeAction.Done) }
                     }
                 }),
@@ -305,9 +322,9 @@ fun GameScreen(chancesLeft: Int, navController: NavController) {
                         Toast.makeText(context, "No number entered", Toast.LENGTH_SHORT ).show()
                     } else {
                         if (guess.toIntOrNull() == randomNumber) {
-                            navController.navigate("gameover/true") // Win scenario
+                            navController.navigate(GameOverPopup(isWinner = true)) // Win scenario
                         } else if (chances - 1 == 0) {
-                            navController.navigate("gameover/false") // Loss scenario
+                            navController.navigate(GameOverPopup(isWinner = false)) // Loss scenario
                         } else {
                             highOrLow = if (randomNumber.toString() < guess) "Your Guess is High" else "Your Guess is Low"
                             chances-- // Decrease chances and continue
@@ -356,9 +373,9 @@ fun GameOverPopup(isWinner: Boolean, navController: NavController) {
             // Play again button
             Button(
                 onClick = {
-                    navController.navigate("rules") {
+                    navController.navigate(RulesScreen) {
                         // Pop up to "rules" screen to restart the game
-                        popUpTo("rules") { inclusive = true }
+                        popUpTo(RulesScreen) { inclusive = true }
                     }
                 },
                 colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF42A5F5)),
@@ -370,6 +387,12 @@ fun GameOverPopup(isWinner: Boolean, navController: NavController) {
     }
 }
 
+
+//@Preview(showBackground = true, showSystemUi = true)
+//@Composable
+//fun CompletePreview() {
+//    AppNavigation()
+//}
 
 //@Preview(showBackground = true, showSystemUi = true)
 //@Composable
